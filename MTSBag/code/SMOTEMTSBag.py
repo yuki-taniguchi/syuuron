@@ -13,6 +13,8 @@ from sklearn.utils import resample
 from tqdm import tqdm 
 
 import tensorflow as tf
+from imblearn.over_sampling import SMOTE
+
 
 # パラメータ
 n_estimators = 10
@@ -257,9 +259,13 @@ result_scaler = [0] * K
 result_inv_C = [0] * K
 threshold = [0] * K
 
+# SMOTEを実行
+sampler = SMOTE()
+SMOTE_X, SMOTE_y = sampler.fit_resample(X=X_train, y=y_train)
+
 for i in tqdm(range(K)):
     # bootstrap sampling
-    resampled_data_x, resampled_data_y = resample(X_train, y_train, n_samples = SIZE)
+    resampled_data_x, resampled_data_y = resample(SMOTE_X, SMOTE_y, n_samples = SIZE)
     random_s = random.sample(list(resampled_data_x.columns), 7)
     resampled_data_x = resampled_data_x[random_s]
 

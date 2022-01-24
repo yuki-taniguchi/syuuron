@@ -186,7 +186,7 @@ def show_result(y_test, y_pred):
             min_gini = gini_split
             threshold = df_pred.iloc[i]['pred']
             threshold_idx = i
-        print(i, gini_split, df_pred.iloc[i]['pred'])
+        # print(i, gini_split, df_pred.iloc[i]['pred'])
 
     print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
     print('Best paramater')
