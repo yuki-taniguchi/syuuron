@@ -1,3 +1,5 @@
+import time
+start = time.time()
 print('ライブラリインポート中')
 
 import pandas as pd
@@ -23,7 +25,14 @@ import tensorflow as tf
 print('実験開始')
 
 n_experiment = 10
-data_list = ['yeast', 'wine', 'abalone', 'car', 'cancer', 'letter']
+data_list = [
+    'yeast', 
+    'wine', 
+    'abalone', 
+    'car',
+    'cancer', 
+    'letter'
+    ]
 
 def data_load(select_data):
     if select_data == 'letter':
@@ -461,3 +470,6 @@ for data in data_list:
         
     result_df.to_csv(f'../data/MTS_{data}_result.csv')
 
+process_time = time.time() - start
+
+print('実行時間は', process_time)
