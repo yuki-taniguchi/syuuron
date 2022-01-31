@@ -26,12 +26,12 @@ print('実験開始')
 
 n_experiment = 10
 data_list = [
-    'yeast', 
-    'wine', 
-    'abalone', 
-    'car',
+    # 'yeast', 
+    # 'wine', 
+    # 'abalone', 
+    # 'car',
     'cancer', 
-    'letter'
+    # 'letter'
     ]
 
 def data_load(select_data):
@@ -242,18 +242,23 @@ def fit_MTS(X, y):
         result_scaler.fit(X[select_columns][y == 0])
         result_Z = result_scaler.transform(X[select_columns][y == 0])
         result_inv_C = inv_cov(result_Z)
+    # 選択された変数が一つ以下の場合はその変数を正常データの平均と標準偏差で標準化してそれの二乗を異常値とする
     else:
         select_columns = df_sn['SN比'].astype(float).idxmax()
-        result_scaler = 0
-        result_inv_C = 0
+        result_scaler = X[select_columns][y == 0].mean()
+        result_inv_C = X[select_columns][y == 0].std()
 
     # 単位空間のスケーラーと共分散行列と選択した変数を出力
     return result_scaler, result_inv_C, select_columns
 
 # 新しいデータのマハラノビス距離を計算する
-def predict_MTS(X, scaler, inv_C, select_columns):
-    Z = scaler.transform(X[select_columns])
-    MD = cal_MD(Z, inv_C)
+def predict_MD(X, scaler, inv_C, select_columns):
+    if type(select_columns) != np.int64:
+        Z = scaler.transform(X[select_columns])
+        MD = cal_MD(Z, inv_C)
+    # 変数が一つしか選択されなかった場合はその変数を正常データの平均と標準偏差で標準化してそれの二乗を異常値とする
+    else:
+        MD = ((X[select_columns] - scaler) / inv_C) ** 2
     return MD
 
 # 閾値をジニ係数が最小になるように決定する
@@ -287,12 +292,9 @@ def determine_threshold(y_true, y_pred):
 def predict_MTSBag(X, scaler, inv_C, select_columns, threshold):
     result = np.ndarray((K, len(X_test)), dtype=bool)
     for i in range(K):
-        if scaler[i] != 0:
-            Z = scaler[i].transform(X[select_columns[i]])
-            MD = cal_MD(Z, inv_C[i])
-            result[i] = MD > threshold[i]
-        else:
-            result[i] = X[select_columns[i]] > threshold[i]
+        MD = predict_MD(X, scaler[i], inv_C[i], select_columns[i])
+        result[i] = MD > threshold[i]
+    # 個々の計算方法を変えれば出力を異常度にできそう！！！（1/31）
     return result.sum(axis=0) / K, result.sum(axis=0) > (K/2)
 
 def make_result_df(result_df, y_test, y_pred, y_proba):
@@ -334,21 +336,12 @@ for data in data_list:
 
         result_scaler, result_inv_C, select_columns = fit_MTS(X_train, y_train)
 
-        if result_scaler != 0:
-            y_train_pred = predict_MTS(X_train, result_scaler, result_inv_C, select_columns)
-        else:
-            y_train_pred = X_train[select_columns]
-            
+        y_train_pred = predict_MD(X_train, result_scaler, result_inv_C, select_columns)
+
         threshold = determine_threshold(y_train, y_train_pred)
-    
-        if result_scaler != 0:
-            Z = result_scaler.transform(X_test[select_columns])
-            MD = cal_MD(Z, result_inv_C)
-            y_pred = MD > threshold
-            y_proba = MD
-        else:
-            y_pred = X_test[select_columns] > threshold
-            y_proba = X_test[select_columns]
+
+        y_proba = predict_MD(X_test, result_scaler, result_inv_C, select_columns)
+        y_pred = y_proba > threshold
 
         result_df = make_result_df(result_df, y_test, y_pred, y_proba)
         
@@ -396,14 +389,10 @@ for data in data_list:
 
             result_scaler[i], result_inv_C[i], select_columns[i] = fit_MTS(resampled_data_x, resampled_data_y)
 
-            if result_scaler[i] != 0:
-                y_pred = predict_MTS(resampled_data_x, result_scaler[i], result_inv_C[i], select_columns[i])
-            else:
-                y_pred = resampled_data_x[select_columns[i]]
+            y_train_pred = predict_MD(resampled_data_x, result_scaler[i], result_inv_C[i], select_columns[i])
 
-            threshold[i] = determine_threshold(resampled_data_y, y_pred)
+            threshold[i] = determine_threshold(resampled_data_y, y_train_pred)
             
-
         y_proba, y_pred = predict_MTSBag(X_test, result_scaler, result_inv_C, select_columns, threshold)
 
         result_df = make_result_df(result_df, y_test, y_pred, y_proba)
@@ -456,13 +445,9 @@ for data in data_list:
 
             result_scaler[i], result_inv_C[i], select_columns[i] = fit_MTS(resampled_data_x, resampled_data_y)
 
-            if result_scaler[i] != 0:
-                y_pred = predict_MTS(resampled_data_x, result_scaler[i], result_inv_C[i], select_columns[i])
-            else:
-                y_pred = resampled_data_x[select_columns[i]]
-
-            threshold[i] = determine_threshold(resampled_data_y, y_pred)
+            y_train_pred = predict_MD(resampled_data_x, result_scaler[i], result_inv_C[i], select_columns[i])
             
+            threshold[i] = determine_threshold(resampled_data_y, y_train_pred)
 
         y_proba, y_pred = predict_MTSBag(X_test, result_scaler, result_inv_C, select_columns, threshold)
 
