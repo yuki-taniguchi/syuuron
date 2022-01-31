@@ -26,12 +26,12 @@ print('実験開始')
 
 n_experiment = 10
 data_list = [
-    # 'yeast', 
-    # 'wine', 
-    # 'abalone', 
-    # 'car',
+    'yeast', 
+    'wine', 
+    'abalone', 
+    'car',
     'cancer', 
-    # 'letter'
+    'letter'
     ]
 
 def data_load(select_data):
