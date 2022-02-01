@@ -55,23 +55,8 @@ def data_load(select_data):
         dataset_path = tf.keras.utils.get_file('wine.data', dataset_url)
 
         # print(dataset_path)
-
-        column_names = ['Alcohol',
-        'Malic acid',
-        'Ash',
-        'Alcalinity of ash',
-        'Magnesium',
-        'Total phenols',
-        'Flavanoids',
-        'Nonflavanoid phenols',
-        'Proanthocyanins',
-        'Color intensity',
-        'Hue',
-        'OD280/OD315 of diluted wines',
-        'Proline' 
-        ]
-
-        raw_data = pd.read_csv(dataset_path, names=column_names)
+        
+        raw_data = pd.read_csv(dataset_path, names=range(13))
         raw_data['y'] = raw_data.index
         raw_data = raw_data.reset_index(drop=True)
 
@@ -252,13 +237,14 @@ def fit_MTS(X, y):
     return result_scaler, result_inv_C, select_columns
 
 # 新しいデータのマハラノビス距離を計算する
-def predict_MD(X, scaler, inv_C, select_columns):
-    if type(select_columns) != np.int64:
-        Z = scaler.transform(X[select_columns])
-        MD = cal_MD(Z, inv_C)
+def predict_MD(X, result_scaler, result_inv_C, select_columns):
+    # select_columnsがfloatになることがある？
+    if type(result_scaler) == StandardScaler:
+        Z = result_scaler.transform(X[select_columns])
+        MD = cal_MD(Z, result_inv_C)
     # 変数が一つしか選択されなかった場合はその変数を正常データの平均と標準偏差で標準化してそれの二乗を異常値とする
     else:
-        MD = ((X[select_columns] - scaler) / inv_C) ** 2
+        MD = ((X[select_columns] - result_scaler) / result_inv_C) ** 2
     return MD
 
 # 閾値をジニ係数が最小になるように決定する
@@ -289,10 +275,10 @@ def determine_threshold(y_true, y_pred):
 
     return threshold
 
-def predict_MTSBag(X, scaler, inv_C, select_columns, threshold):
+def predict_MTSBag(X, result_scaler, result_inv_C, select_columns, threshold):
     result = np.ndarray((K, len(X_test)), dtype=bool)
     for i in range(K):
-        MD = predict_MD(X, scaler[i], inv_C[i], select_columns[i])
+        MD = predict_MD(X, result_scaler[i], result_inv_C[i], select_columns[i])
         result[i] = MD > threshold[i]
     # 個々の計算方法を変えれば出力を異常度にできそう！！！（1/31）
     return result.sum(axis=0) / K, result.sum(axis=0) > (K/2)
