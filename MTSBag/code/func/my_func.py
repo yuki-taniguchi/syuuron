@@ -153,10 +153,12 @@ def predict_MTSBag_(X, result_scaler, result_inv_C, select_columns, threshold, K
         MD = predict_MD(X, result_scaler[i], result_inv_C[i], select_columns[i])
         predict[i] = MD > threshold[i]
         proba[i] = MD
-    # 個々の計算方法を変えれば出力を異常度にできそう！！！（1/31）
+    # 各分類器のMDの平均をpredict_probaとして保存（2/28）
+    # 各分類器で閾値を決めてそれらで投票したものを分類の答えとしている
     return proba.mean(axis=0), predict.sum(axis=0) > (K/2)
 
 def make_result_df(result_df, y_test, y_pred, y_proba, m):
+    # for文の中で回す用
     cm = confusion_matrix(y_test, y_pred)
     TP, FN, FP, TN = cm.flatten()
     result_df['AUC'][m] = roc_auc_score(y_test, y_proba)
