@@ -146,6 +146,16 @@ def predict_MTSBag(X, result_scaler, result_inv_C, select_columns, threshold, K)
     # 個々の計算方法を変えれば出力を異常度にできそう！！！（1/31）
     return result.sum(axis=0) / K, result.sum(axis=0) > (K/2)
 
+def predict_MTSBag_(X, result_scaler, result_inv_C, select_columns, threshold, K):
+    predict = np.ndarray((K, len(X)), dtype=bool)
+    proba = np.ndarray((K, len(X)), dtype=float)
+    for i in range(K):
+        MD = predict_MD(X, result_scaler[i], result_inv_C[i], select_columns[i])
+        predict[i] = MD > threshold[i]
+        proba[i] = MD
+    # 個々の計算方法を変えれば出力を異常度にできそう！！！（1/31）
+    return proba.mean(axis=0), predict.sum(axis=0) > (K/2)
+
 def make_result_df(result_df, y_test, y_pred, y_proba, m):
     cm = confusion_matrix(y_test, y_pred)
     TP, FN, FP, TN = cm.flatten()

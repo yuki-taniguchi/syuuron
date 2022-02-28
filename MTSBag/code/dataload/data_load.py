@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 
-INPUT_DIR = '../../data/'
+INPUT_DIR = '../data/'
 
 def data_load(select_data):
     """
