@@ -14,7 +14,7 @@ from sklearn.model_selection import train_test_split
 from dataload.data_load import data_load
 from func.my_func \
 import \
-    fit_MTS, predict_MD, determine_threshold, predict_MTSBag_, make_result_df
+    fit_MTS, predict_MD, determine_threshold, predict_MTSBag_ImpAgg, make_result_df, predict_WeightedMD
 
 print('実験開始')
 
@@ -70,7 +70,7 @@ for data in data_list:
         
     result_df.to_csv(f'../data/output/{ex_name}_MTS_{data}_result.csv')
 
-print('MTSBag開始')
+print('ImpAggMTSBag開始')
 
 for data in data_list:
     print(data)
@@ -89,17 +89,16 @@ for data in data_list:
 
         # 実行するところ
 
-        # K:再標本化の回数 SIZE:再標本化されたもののサンプルサイズ
-        K = n_estimators
+        # n_estimators:再標本化の回数 SIZE:再標本化されたもののサンプルサイズ
         SIZE = int(len(X) * max_samples)
 
         # 予測に必要なパラメータ
-        select_columns = [0] * K
-        result_scaler = [0] * K
-        result_inv_C = [0] * K
-        threshold = [0] * K
+        select_columns = [0] * n_estimators
+        result_scaler = [0] * n_estimators
+        result_inv_C = [0] * n_estimators
+        threshold = [0] * n_estimators
 
-        for i in range(K):
+        for i in range(n_estimators):
             # bootstrap sampling
             resampled_data_x, resampled_data_y = resample(X_train, y_train, n_samples = SIZE)
             random_s = random.sample(
@@ -116,16 +115,16 @@ for data in data_list:
 
             threshold[i] = determine_threshold(resampled_data_y, y_train_pred)
             
-        y_proba, y_pred = predict_MTSBag_(X_test, result_scaler, result_inv_C, select_columns, threshold, K)
+        y_proba, y_pred = predict_MTSBag_ImpAgg(X_test, result_scaler, result_inv_C, select_columns, threshold, n_estimators)
 
         result_df = make_result_df(result_df, y_test, y_pred, y_proba, m)
         
-    result_df.to_csv(f'../data/output/{ex_name}_MTSBag_{data}_result.csv')
+    result_df.to_csv(f'../data/output/{ex_name}_MTSBagImpAgg_{data}_result.csv')
 
 
 from imblearn.over_sampling import SMOTE
 
-print('SMOTEMTSBag開始！')
+print('ImpAggSMOTEMTSBag開始！')
 
 for data in data_list:
     print(data)
@@ -142,20 +141,19 @@ for data in data_list:
 
         # 実行するところ
 
-        # K:再標本化の回数 SIZE:再標本化されたもののサンプルサイズ
-        K = n_estimators
+        # n_estimators:再標本化の回数 SIZE:再標本化されたもののサンプルサイズ
         SIZE = int(len(X) * max_samples)
 
         # 予測に必要なパラメータ
-        select_columns = [0] * K
-        result_scaler = [0] * K
-        result_inv_C = [0] * K
-        threshold = [0] * K
+        select_columns = [0] * n_estimators
+        result_scaler = [0] * n_estimators
+        result_inv_C = [0] * n_estimators
+        threshold = [0] * n_estimators
 
         # SMOTEを実行
         sampler = SMOTE()
         SMOTE_X, SMOTE_y = sampler.fit_resample(X=X_train, y=y_train)
-        for i in range(K):
+        for i in range(n_estimators):
             # bootstrap sampling
             resampled_data_x, resampled_data_y = resample(SMOTE_X, SMOTE_y, n_samples = SIZE)
             random_s = random.sample(
@@ -172,11 +170,11 @@ for data in data_list:
             
             threshold[i] = determine_threshold(resampled_data_y, y_train_pred)
 
-        y_proba, y_pred = predict_MTSBag_(X_test, result_scaler, result_inv_C, select_columns, threshold, K)
+        y_proba, y_pred = predict_MTSBag_ImpAgg(X_test, result_scaler, result_inv_C, select_columns, threshold, n_estimators)
 
         result_df = make_result_df(result_df, y_test, y_pred, y_proba, m)
         
-    result_df.to_csv(f'../data/output/{ex_name}_SMOTEMTSBag_{data}_result.csv')
+    result_df.to_csv(f'../data/output/{ex_name}_SMOTEMTSBagImpAgg_{data}_result.csv')
 
 process_time = time.time() - start
 

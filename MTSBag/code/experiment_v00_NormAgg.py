@@ -87,17 +87,16 @@ for data in data_list:
 
         # 実行するところ
 
-        # K:再標本化の回数 SIZE:再標本化されたもののサンプルサイズ
-        K = n_estimators
+        # n_estimators:再標本化の回数 SIZE:再標本化されたもののサンプルサイズ
         SIZE = int(len(X) * max_samples)
 
         # 予測に必要なパラメータ
-        select_columns = [0] * K
-        result_scaler = [0] * K
-        result_inv_C = [0] * K
-        threshold = [0] * K
+        select_columns = [0] * n_estimators
+        result_scaler = [0] * n_estimators
+        result_inv_C = [0] * n_estimators
+        threshold = [0] * n_estimators
 
-        for i in range(K):
+        for i in range(n_estimators):
             # bootstrap sampling
             resampled_data_x, resampled_data_y = resample(X_train, y_train, n_samples = SIZE)
             random_s = random.sample(
@@ -114,7 +113,7 @@ for data in data_list:
 
             threshold[i] = determine_threshold(resampled_data_y, y_train_pred)
             
-        y_proba, y_pred = predict_MTSBag(X_test, result_scaler, result_inv_C, select_columns, threshold, K)
+        y_proba, y_pred = predict_MTSBag(X_test, result_scaler, result_inv_C, select_columns, threshold, n_estimators)
 
         result_df = make_result_df(result_df, y_test, y_pred, y_proba, m)
         
@@ -140,20 +139,19 @@ for data in data_list:
 
         # 実行するところ
 
-        # K:再標本化の回数 SIZE:再標本化されたもののサンプルサイズ
-        K = n_estimators
+        # n_estimators:再標本化の回数 SIZE:再標本化されたもののサンプルサイズ
         SIZE = int(len(X) * max_samples)
 
         # 予測に必要なパラメータ
-        select_columns = [0] * K
-        result_scaler = [0] * K
-        result_inv_C = [0] * K
-        threshold = [0] * K
+        select_columns = [0] * n_estimators
+        result_scaler = [0] * n_estimators
+        result_inv_C = [0] * n_estimators
+        threshold = [0] * n_estimators
 
         # SMOTEを実行
         sampler = SMOTE()
         SMOTE_X, SMOTE_y = sampler.fit_resample(X=X_train, y=y_train)
-        for i in range(K):
+        for i in range(n_estimators):
             # bootstrap sampling
             resampled_data_x, resampled_data_y = resample(SMOTE_X, SMOTE_y, n_samples = SIZE)
             random_s = random.sample(
@@ -170,7 +168,7 @@ for data in data_list:
             
             threshold[i] = determine_threshold(resampled_data_y, y_train_pred)
 
-        y_proba, y_pred = predict_MTSBag(X_test, result_scaler, result_inv_C, select_columns, threshold, K)
+        y_proba, y_pred = predict_MTSBag(X_test, result_scaler, result_inv_C, select_columns, threshold, n_estimators)
 
         result_df = make_result_df(result_df, y_test, y_pred, y_proba, m)
         

@@ -23,13 +23,32 @@ def inv_cov(Z):
 def cal_MD(Z, inv_C):
     '''
     Z:標準化したベクトル
-    inv_C:標準化後の共分散行列
+    inv_C:標準化後の共分散行列の逆行列
     '''
     MD = np.zeros(len(Z))
     for i in range(len(Z)):
         _a = np.dot(Z[i], inv_C)
         _MD = np.dot(_a, Z[i].T)
         _MD = _MD / Z.shape[1]
+        MD[i] = _MD
+    return MD
+
+def gram_schmidt_cal_MD(Z):
+    """
+    グラムシュミット法を用いてMDを計算する
+    Z:標準化したベクトル
+    直行化しているため，逆行列を求める必要なし
+    """
+    gram_vec, _ = np.linalg.qr(Z)
+    ips = np.diag(np.cov(gram_vec.T))
+    k = gram_vec.shape[1]
+    MD = np.zeros(len(Z))
+    
+    for i, one_gram_vec in enumerate(gram_vec):
+        _MD = 0
+        for q, u in enumerate(one_gram_vec):
+            _MD += u**2 / ips[q]
+        _MD = _MD / k
         MD[i] = _MD
     return MD
 
@@ -102,6 +121,84 @@ def fit_MTS(X, y):
     # 単位空間のスケーラーと共分散行列と選択した変数を出力
     return result_scaler, result_inv_C, select_columns
 
+# MTSを実行し，変数選択をするのではなく，効果ゲインによって変数重みづけを行う
+def fit_MTS_WeightedFeatures(X, y):
+    """
+    変数選択をするのではなく効果ゲインによって変数重みづけを行う
+    グラムシュミット法によって直行化させたベクトルを使ってMDを求めることにより
+    各変数のMDを個別に計算できるようになる. 
+    そのため，各変数ごとに加重することが可能になる！！！
+    """
+    # 正常データのみを使用して標準化
+    scaler = StandardScaler()
+    scaler.fit(X[y == 0])
+    normal_Z = scaler.transform(X[y == 0])
+    anomaly_Z = scaler.transform(X[y == 1])
+
+    # 正常データのみを使用して共分散行列を計算
+    inv_C = inv_cov(normal_Z)
+
+    # いったん飛ばす，削除の基準は？削除しない方法もあるっぽい？
+        #１度目の仮のマハラノビス距離を計算
+        # MD_1st = cal_MD(normal_Z, inv_C)
+        # もしもマハラノビス距離が余りにも大きいサンプルがあれば任意で削除する
+        # 削除後のデータを使用して標準化と共分散行列を計算
+
+    # 異常データと直交表を用いてSN比を計算
+    #L8直行表
+    l8 = np.array([
+        [1,1,1,1,1,1,1],
+        [1,1,1,2,2,2,2],
+        [1,2,2,1,1,2,2],
+        [1,2,2,2,2,1,1],
+        [2,1,2,1,2,1,2],
+        [2,1,2,2,1,2,1],
+        [2,2,1,1,2,2,1],
+        [2,2,1,2,1,1,2]
+        ])
+    l8 = (l8 == 1)
+
+    #異常データのマハラノビス距離
+    result = np.zeros((l8.shape[0], anomaly_Z.shape[0]))
+    for i, l8_row in enumerate(l8):
+        result[i] = cal_MD(anomaly_Z[:, l8_row], inv_C[l8_row][:,l8_row])
+
+    #SN比
+    sn = np.zeros(l8.shape[0])
+    for idx, row in enumerate(result):
+        sum_MD = 0
+        for i in range(len(row)):
+            sum_MD += 1 / row[i]
+        sn[idx] = -10 * math.log10(sum_MD / len(row))
+        
+    # SN比を利用し，不要と思われる変数を削除する
+    #変数選択
+
+    #########################################################################
+    # ここを変更する
+    #########################################################################
+    df_sn = pd.DataFrame(index=X.columns, columns=['SN比','残す'])
+    for i, clm in enumerate(X.columns):
+        df_sn.loc[df_sn.index == clm, 'SN比'] = sum(sn[l8.T[i]]) - sum(sn[~l8.T[i]])
+        df_sn.loc[df_sn.index == clm, '残す'] = sum(sn[l8.T[i]]) - sum(sn[~l8.T[i]]) > 0
+    #使用した変数を保存
+    select_columns = df_sn[df_sn['残す']].index
+    
+    if len(select_columns) > 1:
+        # 選択変数でのスケーラーと共分散行列を計算
+        result_scaler = StandardScaler()
+        result_scaler.fit(X[select_columns][y == 0])
+        result_Z = result_scaler.transform(X[select_columns][y == 0])
+        result_inv_C = inv_cov(result_Z)
+    # 選択された変数が一つ以下の場合はその変数を正常データの平均と標準偏差で標準化してそれの二乗を異常値とする
+    else:
+        select_columns = df_sn['SN比'].astype(float).idxmax()
+        result_scaler = X[select_columns][y == 0].mean()
+        result_inv_C = X[select_columns][y == 0].std()
+
+    # 単位空間のスケーラーと共分散行列と選択した変数を出力
+    return result_scaler, result_inv_C, select_columns
+
 # 新しいデータのマハラノビス距離を計算する
 def predict_MD(X, result_scaler, result_inv_C, select_columns):
     # select_columnsがfloatになることがある？
@@ -112,6 +209,11 @@ def predict_MD(X, result_scaler, result_inv_C, select_columns):
     else:
         MD = ((X[select_columns] - result_scaler) / result_inv_C) ** 2
     return MD
+
+def predict_WeightedMD():
+    """新しいデータの重みづけマハラノビス距離を計算する"""
+    WMD = 0
+    return WMD
 
 # 閾値をジニ係数が最小になるように決定する
 def determine_threshold(y_true, y_pred):
@@ -141,24 +243,24 @@ def determine_threshold(y_true, y_pred):
 
     return threshold
 
-def predict_MTSBag(X, result_scaler, result_inv_C, select_columns, threshold, K):
-    result = np.ndarray((K, len(X)), dtype=bool)
-    for i in range(K):
+def predict_MTSBag(X, result_scaler, result_inv_C, select_columns, threshold, n_estimators):
+    result = np.ndarray((n_estimators, len(X)), dtype=bool)
+    for i in range(n_estimators):
         MD = predict_MD(X, result_scaler[i], result_inv_C[i], select_columns[i])
         result[i] = MD > threshold[i]
-    # 個々の計算方法を変えれば出力を異常度にできそう！！！（1/31）
-    return result.sum(axis=0) / K, result.sum(axis=0) > (K/2)
+    # ここの計算方法を変えれば出力を異常度にできそう！！！（1/31）
+    return result.sum(axis=0) / n_estimators, result.sum(axis=0) > (n_estimators/2)
 
-def predict_MTSBag_(X, result_scaler, result_inv_C, select_columns, threshold, K):
-    predict = np.ndarray((K, len(X)), dtype=bool)
-    proba = np.ndarray((K, len(X)), dtype=float)
-    for i in range(K):
+def predict_MTSBag_ImpAgg(X, result_scaler, result_inv_C, select_columns, threshold, n_estimators):
+    predict = np.ndarray((n_estimators, len(X)), dtype=bool)
+    proba = np.ndarray((n_estimators, len(X)), dtype=float)
+    for i in range(n_estimators):
         MD = predict_MD(X, result_scaler[i], result_inv_C[i], select_columns[i])
         predict[i] = MD > threshold[i]
         proba[i] = MD
     # 各分類器のMDの平均をpredict_probaとして保存（2/28）
     # 各分類器で閾値を決めてそれらで投票したものを分類の答えとしている
-    return proba.mean(axis=0), predict.sum(axis=0) > (K/2)
+    return proba.mean(axis=0), predict.sum(axis=0) > (n_estimators/2)
 
 def make_result_df(result_df, y_test, y_pred, y_proba, m):
     # for文の中で回す用
