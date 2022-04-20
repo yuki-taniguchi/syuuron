@@ -122,12 +122,16 @@ def fit_MTS(X, y):
     return result_scaler, result_inv_C, select_columns
 
 # MTSを実行し，変数選択をするのではなく，効果ゲインによって変数重みづけを行う
-def fit_MTS_WeightedFeatures(X, y):
+def fit_WMTS(X, y):
     """
-    変数選択をするのではなく効果ゲインによって変数重みづけを行う
-    グラムシュミット法によって直行化させたベクトルを使ってMDを求めることにより
-    各変数のMDを個別に計算できるようになる. 
-    そのため，各変数ごとに加重することが可能になる！！！
+    input: X, y
+    output: reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight
+
+    reduced_model_scaler: 縮小モデルのスケーラー
+    reduced_model_inv_C: 縮小モデルの共分散行列の逆行列
+    select_columns: 選択された変数
+    select_columns_weight: 選択された変数の重み
+
     """
     # 正常データのみを使用して標準化
     scaler = StandardScaler()
@@ -158,46 +162,65 @@ def fit_MTS_WeightedFeatures(X, y):
         ])
     l8 = (l8 == 1)
 
-    #異常データのマハラノビス距離
-    result = np.zeros((l8.shape[0], anomaly_Z.shape[0]))
+    # 異常データのマハラノビス距離
+    anomaly_MD = np.zeros((l8.shape[0], anomaly_Z.shape[0]))
     for i, l8_row in enumerate(l8):
-        result[i] = cal_MD(anomaly_Z[:, l8_row], inv_C[l8_row][:,l8_row])
+        anomaly_MD[i] = cal_MD(anomaly_Z[:, l8_row], inv_C[l8_row][:,l8_row]) # 正常データのinv_Cを使う必要がある
 
-    #SN比
+    # SN比の算出
     sn = np.zeros(l8.shape[0])
-    for idx, row in enumerate(result):
+    for idx, row in enumerate(anomaly_MD):
         sum_MD = 0
-        for i in range(len(row)):
-            sum_MD += 1 / row[i]
+        for row_i in row:
+            sum_MD += 1 / row_i
         sn[idx] = -10 * math.log10(sum_MD / len(row))
         
     # SN比を利用し，不要と思われる変数を削除する
-    #変数選択
-
-    #########################################################################
-    # ここを変更する
-    #########################################################################
-    df_sn = pd.DataFrame(index=X.columns, columns=['SN比','残す'])
+    # 変数選択
+    df_gain = pd.DataFrame(index=X.columns, columns=['効果ゲイン','残す'])
     for i, clm in enumerate(X.columns):
-        df_sn.loc[df_sn.index == clm, 'SN比'] = sum(sn[l8.T[i]]) - sum(sn[~l8.T[i]])
-        df_sn.loc[df_sn.index == clm, '残す'] = sum(sn[l8.T[i]]) - sum(sn[~l8.T[i]]) > 0
-    #使用した変数を保存
-    select_columns = df_sn[df_sn['残す']].index
+        gain = sum(sn[l8.T[i]]) - sum(sn[~l8.T[i]])
+        df_gain.loc[df_gain.index == clm, '効果ゲイン'] = gain
+        df_gain.loc[df_gain.index == clm, '残す'] = gain > 0
+    # 選択された変数を保存
+    select_columns = df_gain[df_gain['残す']].index
+    select_gain = df_gain[df_gain['残す']]['効果ゲイン'].values
+    select_columns_weight = select_gain / select_gain.sum()
     
+    # 選択された変数が1つ以下の場合の例外処理
     if len(select_columns) > 1:
-        # 選択変数でのスケーラーと共分散行列を計算
-        result_scaler = StandardScaler()
-        result_scaler.fit(X[select_columns][y == 0])
-        result_Z = result_scaler.transform(X[select_columns][y == 0])
-        result_inv_C = inv_cov(result_Z)
+        # 縮小モデルでのスケーラーと共分散行列を計算
+        reduced_model_scaler = StandardScaler()
+        reduced_model_scaler.fit(X[select_columns][y == 0])
+        reduced_model_normal_Z = reduced_model_scaler.transform(X[select_columns][y == 0])
+        reduced_model_inv_C = inv_cov(reduced_model_normal_Z)
     # 選択された変数が一つ以下の場合はその変数を正常データの平均と標準偏差で標準化してそれの二乗を異常値とする
     else:
-        select_columns = df_sn['SN比'].astype(float).idxmax()
-        result_scaler = X[select_columns][y == 0].mean()
-        result_inv_C = X[select_columns][y == 0].std()
+        select_columns = df_gain['効果ゲイン'].astype(float).idxmax()
+        reduced_model_scaler = X[select_columns][y == 0].mean()
+        reduced_model_inv_C = X[select_columns][y == 0].std()
 
-    # 単位空間のスケーラーと共分散行列と選択した変数を出力
-    return result_scaler, result_inv_C, select_columns
+    # 縮小モデルのスケーラーと共分散行列と選択した変数を出力
+    return reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight
+
+
+# 縮小モデルによってマハラノビス距離を計算する
+def cal_WMD_by_reduced_model(X, reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight):
+    # select_columnsがfloatになることがある？
+    if type(reduced_model_scaler) == StandardScaler:
+        Z = reduced_model_scaler.transform(X[select_columns])
+        Weighted_Z = Z * select_columns_weight
+        MD = cal_MD(Weighted_Z, reduced_model_inv_C)
+    # 変数が一つしか選択されなかった場合はその変数を正常データの平均と標準偏差で標準化してそれの二乗を異常値とする
+    else:
+        MD = ((X[select_columns] - reduced_model_scaler) / reduced_model_inv_C) ** 2
+    return MD
+
+    
+def predict_WMTS(X_test, reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight, threshold):
+    proba = cal_WMD_by_reduced_model(X_test, reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight)
+    pred = proba > threshold
+    return proba, pred
 
 # 新しいデータのマハラノビス距離を計算する
 def predict_MD(X, result_scaler, result_inv_C, select_columns):
@@ -210,10 +233,10 @@ def predict_MD(X, result_scaler, result_inv_C, select_columns):
         MD = ((X[select_columns] - result_scaler) / result_inv_C) ** 2
     return MD
 
-def predict_WeightedMD():
-    """新しいデータの重みづけマハラノビス距離を計算する"""
-    WMD = 0
-    return WMD
+# def predict_WeightedMD():
+#     """新しいデータの重みづけマハラノビス距離を計算する"""
+#     WMD = 0
+#     return WMD
 
 # 閾値をジニ係数が最小になるように決定する
 def determine_threshold(y_true, y_pred):
@@ -256,6 +279,18 @@ def predict_MTSBag_ImpAgg(X, result_scaler, result_inv_C, select_columns, thresh
     proba = np.ndarray((n_estimators, len(X)), dtype=float)
     for i in range(n_estimators):
         MD = predict_MD(X, result_scaler[i], result_inv_C[i], select_columns[i])
+        predict[i] = MD > threshold[i]
+        proba[i] = MD
+    # 各分類器のMDの平均をpredict_probaとして保存（2/28）
+    # 各分類器で閾値を決めてそれらで投票したものを分類の答えとしている
+    return proba.mean(axis=0), predict.sum(axis=0) > (n_estimators/2)
+
+
+def predict_WMTSBag_ImpAgg(X, result_scaler, result_inv_C, select_columns, select_columns_weight, threshold, n_estimators):
+    predict = np.ndarray((n_estimators, len(X)), dtype=bool)
+    proba = np.ndarray((n_estimators, len(X)), dtype=float)
+    for i in range(n_estimators):
+        MD = cal_WMD_by_reduced_model(X, result_scaler[i], result_inv_C[i], select_columns[i], select_columns_weight[i])
         predict[i] = MD > threshold[i]
         proba[i] = MD
     # 各分類器のMDの平均をpredict_probaとして保存（2/28）
