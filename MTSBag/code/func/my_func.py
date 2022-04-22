@@ -184,11 +184,11 @@ def fit_WMTS(X, y):
         df_gain.loc[df_gain.index == clm, '残す'] = gain > 0
     # 選択された変数を保存
     select_columns = df_gain[df_gain['残す']].index
-    select_gain = df_gain[df_gain['残す']]['効果ゲイン'].values
-    select_columns_weight = select_gain / select_gain.sum()
-    
+        
     # 選択された変数が1つ以下の場合の例外処理
     if len(select_columns) > 1:
+        select_gain = df_gain[df_gain['残す']]['効果ゲイン'].values
+        select_columns_weight = select_gain / select_gain.sum()
         # 縮小モデルでのスケーラーと共分散行列を計算
         reduced_model_scaler = StandardScaler()
         reduced_model_scaler.fit(X[select_columns][y == 0])
@@ -199,6 +199,7 @@ def fit_WMTS(X, y):
         select_columns = df_gain['効果ゲイン'].astype(float).idxmax()
         reduced_model_scaler = X[select_columns][y == 0].mean()
         reduced_model_inv_C = X[select_columns][y == 0].std()
+        select_columns_weight = 1
 
     # 縮小モデルのスケーラーと共分散行列と選択した変数を出力
     return reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight
