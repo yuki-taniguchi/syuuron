@@ -18,14 +18,16 @@ import \
 
 print('実験開始')
 
+ex_name = input('実験名は?')
+
 n_experiment = 10
 data_list = [
-    # 'yeast', 
+    'yeast', 
     'wine', 
-    # 'abalone', 
-    # 'car',
-    # 'cancer', 
-    # 'letter'
+    'abalone', 
+    'car',
+    'cancer', 
+    'letter'
     ]
 
 
@@ -66,7 +68,7 @@ for data in data_list:
 
         result_df = make_result_df(result_df, y_test, y_pred, y_proba, m)
         
-    result_df.to_csv(f'../data/output/MTS_{data}_result.csv')
+    result_df.to_csv(f'../data/output/{ex_name}_MTS_{data}_result.csv')
 
 print('MTSBag開始')
 
@@ -117,7 +119,7 @@ for data in data_list:
 
         result_df = make_result_df(result_df, y_test, y_pred, y_proba, m)
         
-    result_df.to_csv(f'../data/output/MTSBag_{data}_result.csv')
+    result_df.to_csv(f'../data/output/{ex_name}_MTSBag_{data}_result.csv')
 
 
 from imblearn.over_sampling import SMOTE
@@ -172,7 +174,7 @@ for data in data_list:
 
         result_df = make_result_df(result_df, y_test, y_pred, y_proba, m)
         
-    result_df.to_csv(f'../data/output/SMOTEMTSBag_{data}_result.csv')
+    result_df.to_csv(f'../data/output/{ex_name}_SMOTEMTSBag_{data}_result.csv')
 
 process_time = time.time() - start
 

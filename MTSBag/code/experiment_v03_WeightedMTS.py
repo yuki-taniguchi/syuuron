@@ -23,11 +23,11 @@ ex_name = input('実験名は?')
 n_experiment = 10
 data_list = [
     'yeast', 
-    # 'wine', 
-    # 'abalone', 
-    # 'car',
-    # 'cancer', 
-    # 'letter'
+    'wine', 
+    'abalone', 
+    'car',
+    'cancer', 
+    'letter'
     ]
 
 
@@ -71,41 +71,41 @@ data_list = [
 #     result_df.to_csv(f'../data/output/{ex_name}_MTS_{data}_result.csv')
 
 
-# print('WMTS開始！')
+print('WMTS開始！')
 
-# for data in data_list:
-#     print(data)
-#     result_df = pd.DataFrame(
-#                         columns=['AUC', 'accuracy', 'recall', 'Specificity', 'precision', 'gmeans', 'RS'],
-#                         index=range(n_experiment))
-#     for m in tqdm(range(n_experiment)):
+for data in data_list:
+    print(data)
+    result_df = pd.DataFrame(
+                        columns=['AUC', 'accuracy', 'recall', 'Specificity', 'precision', 'gmeans', 'RS'],
+                        index=range(n_experiment))
+    for m in tqdm(range(n_experiment)):
         
-#         X, y = data_load(data)
+        X, y = data_load(data)
 
-#         # バギング側の話
-#         # ブートストラップサンプリングの個数
-#         n = 10
-#         seed = random.randint(0, n)
+        # バギング側の話
+        # ブートストラップサンプリングの個数
+        n = 10
+        seed = random.randint(0, n)
 
-#         # 使用する7つの変数をランダムに取得する
-#         # バギングをする際はそれぞれのサブサンプルで7つの変数を選択する．
-#         random.seed(seed)
-#         random_s = random.sample(list(X.columns), len(X.columns) if len(X.columns) < 7 else 7)
-#         X = X[random_s]
+        # 使用する7つの変数をランダムに取得する
+        # バギングをする際はそれぞれのサブサンプルで7つの変数を選択する．
+        random.seed(seed)
+        random_s = random.sample(list(X.columns), len(X.columns) if len(X.columns) < 7 else 7)
+        X = X[random_s]
 
-#         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
-#         reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight = fit_WMTS(X_train, y_train)
+        reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight = fit_WMTS(X_train, y_train)
 
-#         y_train_pred = cal_WMD_by_reduced_model(X_train, reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight)
+        y_train_pred = cal_WMD_by_reduced_model(X_train, reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight)
 
-#         threshold = determine_threshold(y_train, y_train_pred)
+        threshold = determine_threshold(y_train, y_train_pred)
 
-#         proba, pred = predict_WMTS(X_test, reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight, threshold)
+        proba, pred = predict_WMTS(X_test, reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight, threshold)
 
-#         result_df = make_result_df(result_df, y_test, pred, proba, m)
+        result_df = make_result_df(result_df, y_test, pred, proba, m)
         
-#     result_df.to_csv(f'../data/output/{ex_name}_WMTS_{data}_result.csv')
+    result_df.to_csv(f'../data/output/{ex_name}_WMTS_{data}_result.csv')
 
 
 
