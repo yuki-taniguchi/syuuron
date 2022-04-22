@@ -68,9 +68,9 @@ for data in data_list:
 
         result_df = make_result_df(result_df, y_test, y_pred, y_proba, m)
         
-    result_df.to_csv(f'../data/output/{ex_name}_MTS_{data}_result.csv')
+    result_df.to_csv(f'../data/output/{ex_name}_MTS2_{data}_result.csv')
 
-print('ImpAggMTSBag開始')
+print('MTSBagImpAgg開始')
 
 for data in data_list:
     print(data)
@@ -124,7 +124,7 @@ for data in data_list:
 
 from imblearn.over_sampling import SMOTE
 
-print('ImpAggSMOTEMTSBag開始！')
+print('SMOTEMTSBagImpAgg開始！')
 
 for data in data_list:
     print(data)
