@@ -12,9 +12,7 @@ from sklearn.model_selection import train_test_split
 
 # 自作関数
 from dataload.data_load import data_load
-from func.my_func \
-import \
-    fit_MTS, predict_MD, determine_threshold, predict_MTSBag_ImpAgg, make_result_df, fit_WMTS, cal_WMD_by_reduced_model, predict_WMTS, predict_WMTSBag_ImpAgg
+from func.my_func import *
 
 print('実験開始')
 
