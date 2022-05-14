@@ -119,6 +119,15 @@ def data_load(select_data):
         X = raw_data.drop(9, axis=1)
         y = raw_data[9]
 
+    elif select_data == '1504':
+        df = pd.read_csv(INPUT_DIR + '1504_player_df.csv')
+        X = df.drop([
+            'TargetDate',
+            'y_bin',
+            'y_num'
+            ], axis=1)
+        y = df['y_bin']
+        
     else:
         print('そのデータはありません')
     

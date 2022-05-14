@@ -134,7 +134,8 @@ for data in data_list:
     for m in tqdm(range(n_experiment)):
         
         X, y = data_load(data)
-          
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
         # パラメータ
         n_estimators = 10
         max_samples = 0.5
