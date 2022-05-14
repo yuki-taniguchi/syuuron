@@ -25,7 +25,7 @@ data_list = [
     'abalone', 
     'car',
     'cancer', 
-    # 'letter'
+    'letter'
     ]
 
 def exp_ImpAggMTSBag():
