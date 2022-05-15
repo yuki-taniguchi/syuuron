@@ -21,11 +21,12 @@ ex_name = input('実験名は?')
 n_experiment = 10
 data_list = [
     # 'yeast', 
-    'wine', 
-    'abalone', 
-    'car',
-    'cancer', 
-    'letter'
+    # 'wine', 
+    # 'abalone', 
+    # 'car',
+    # 'cancer', 
+    # 'letter',
+    '1504'
     ]
 
 
@@ -51,7 +52,7 @@ for data in data_list:
         random_s = random.sample(list(X.columns), len(X.columns) if len(X.columns) < 7 else 7)
         X = X[random_s]
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y)
 
         reduced_model_scaler, reduced_model_t, reduced_model_ips, select_columns, select_columns_weight = fit_WMTGS(X_train, y_train)
         y_train_pred = cal_gram_WMD_by_reduced_model(X_train, reduced_model_scaler, reduced_model_t, reduced_model_ips, select_columns, select_columns_weight)
@@ -87,7 +88,7 @@ for data in data_list:
         random_s = random.sample(list(X.columns), len(X.columns) if len(X.columns) < 7 else 7)
         X = X[random_s]
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y)
 
         result_scaler, result_t, result_ips, select_columns = fit_MTGS(X_train, y_train)
 
@@ -125,7 +126,7 @@ for data in data_list:
         random_s = random.sample(list(X.columns), len(X.columns) if len(X.columns) < 7 else 7)
         X = X[random_s]
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y)
 
         result_scaler, result_inv_C, select_columns = fit_MTS(X_train, y_train)
 
@@ -163,7 +164,7 @@ for data in data_list:
         random_s = random.sample(list(X.columns), len(X.columns) if len(X.columns) < 7 else 7)
         X = X[random_s]
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y)
 
         reduced_model_scaler, reduced_model_inv_C, select_columns, select_columns_weight = fit_WMTS(X_train, y_train)
 
