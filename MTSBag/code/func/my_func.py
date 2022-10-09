@@ -40,7 +40,8 @@ def fit_MTS(X, y):
     scaler = StandardScaler()
     scaler.fit(X[y == 0])
     normal_Z = scaler.transform(X[y == 0])
-    anomaly_Z = scaler.transform(X[y == 1])
+    if len(X[y == 1]) > 0:
+        anomaly_Z = scaler.transform(X[y == 1])
 
     # 正常データのみを使用して共分散行列を計算
     inv_C = inv_cov(normal_Z)
@@ -65,40 +66,44 @@ def fit_MTS(X, y):
         ])
     l8 = (l8 == 1)
 
-    #異常データのマハラノビス距離
-    result = np.zeros((l8.shape[0], anomaly_Z.shape[0]))
-    for i, l8_row in enumerate(l8):
-        result[i] = cal_MD(anomaly_Z[:, l8_row], inv_C[l8_row][:,l8_row])
+    if len(X[y == 1]) > 0:
+        #異常データのマハラノビス距離
+        result = np.zeros((l8.shape[0], anomaly_Z.shape[0]))
+        for i, l8_row in enumerate(l8):
+            result[i] = cal_MD(anomaly_Z[:, l8_row], inv_C[l8_row][:,l8_row])
 
-    #SN比
-    sn = np.zeros(l8.shape[0])
-    for idx, row in enumerate(result):
-        sum_MD = 0
-        for i in range(len(row)):
-            sum_MD += 1 / row[i]
-        sn[idx] = -10 * math.log10(sum_MD / len(row))
+        #SN比
+        sn = np.zeros(l8.shape[0])
+        for idx, row in enumerate(result):
+            sum_MD = 0
+            for i in range(len(row)):
+                sum_MD += 1 / row[i]
+            sn[idx] = -10 * math.log10(sum_MD / len(row))
+            
+        # SN比を利用し，不要と思われる変数を削除する
+        #変数選択
+        df_sn = pd.DataFrame(index=X.columns, columns=['SN比','残す'])
+        for i, clm in enumerate(X.columns):
+            df_sn.loc[df_sn.index == clm, 'SN比'] = sum(sn[l8.T[i]]) - sum(sn[~l8.T[i]])
+            df_sn.loc[df_sn.index == clm, '残す'] = sum(sn[l8.T[i]]) - sum(sn[~l8.T[i]]) > 0
+        #使用した変数を保存
+        select_columns = df_sn[df_sn['残す']].index
         
-    # SN比を利用し，不要と思われる変数を削除する
-    #変数選択
-    df_sn = pd.DataFrame(index=X.columns, columns=['SN比','残す'])
-    for i, clm in enumerate(X.columns):
-        df_sn.loc[df_sn.index == clm, 'SN比'] = sum(sn[l8.T[i]]) - sum(sn[~l8.T[i]])
-        df_sn.loc[df_sn.index == clm, '残す'] = sum(sn[l8.T[i]]) - sum(sn[~l8.T[i]]) > 0
-    #使用した変数を保存
-    select_columns = df_sn[df_sn['残す']].index
-    
-    if len(select_columns) > 1:
-        # 選択変数でのスケーラーと共分散行列を計算
-        result_scaler = StandardScaler()
-        result_scaler.fit(X[select_columns][y == 0])
-        result_Z = result_scaler.transform(X[select_columns][y == 0])
-        result_inv_C = inv_cov(result_Z)
-    # 選択された変数が一つ以下の場合はその変数を正常データの平均と標準偏差で標準化してそれの二乗を異常値とする
+        if len(select_columns) > 1:
+            # 選択変数でのスケーラーと共分散行列を計算
+            result_scaler = StandardScaler()
+            result_scaler.fit(X[select_columns][y == 0])
+            result_Z = result_scaler.transform(X[select_columns][y == 0])
+            result_inv_C = inv_cov(result_Z)
+        # 選択された変数が一つ以下の場合はその変数を正常データの平均と標準偏差で標準化してそれの二乗を異常値とする
+        else:
+            select_columns = df_sn['SN比'].astype(float).idxmax()
+            result_scaler = X[select_columns][y == 0].mean()
+            result_inv_C = X[select_columns][y == 0].std()
     else:
-        select_columns = df_sn['SN比'].astype(float).idxmax()
-        result_scaler = X[select_columns][y == 0].mean()
-        result_inv_C = X[select_columns][y == 0].std()
-
+        result_scaler = scaler
+        result_inv_C = inv_C
+        select_columns = X.columns
     # 単位空間のスケーラーと共分散行列と選択した変数を出力
     return result_scaler, result_inv_C, select_columns
 
